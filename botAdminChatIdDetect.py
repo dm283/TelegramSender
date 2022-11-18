@@ -1,9 +1,10 @@
 import sys, asyncio, configparser
 import requests
 
+# загрузка конфигурации
 CONFIG_FILE = 'config.ini'
 config = configparser.ConfigParser()
-config.read(CONFIG_FILE)
+config.read(CONFIG_FILE, encoding='utf-8')
 
 BOT_NAME = config['common']['bot_name']
 BOT_TOKEN = config['common']['bot_token']

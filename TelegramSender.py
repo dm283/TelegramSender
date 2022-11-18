@@ -19,7 +19,7 @@ user_credentials_password = (refKey.decrypt(hashed_user_credentials_password).de
 
 IS_MOCK_DB = True if config['database']['is_mock_db'] == 'True' else False # для локального тестирования приложение работает с симулятором базы данных файл mock-db.json
 DB = config['database']['db']  # база данных mssql/posgres
-DB_TABLE = config['database']['db_table_messages']  # db.schema.table
+DB_TABLE_MESSAGES = config['database']['db_table_messages']  # db.schema.table
 DB_TABLE_GROUPS = config['database']['db_table_groups']  # db.schema.table  таблица с telegram-группами
 CONNECTION_STRING = config['database']['connection_string']  # odbc driver system dsn name
 CHECK_DB_PERIOD = int(config['common']['check_db_period'])  # период проверки новых записей в базе данных
@@ -117,17 +117,34 @@ async def robot():
     if IS_MOCK_DB:
         pass
     else:
-        cnxn = await aioodbc.connect(dsn=CONNECTION_STRING, loop=loop_robot)
-        cursor = await cnxn.cursor()
-        print(f'Создано подключение к базе данных {DB}')  ###
+        try:
+            cnxn = await aioodbc.connect(dsn=CONNECTION_STRING, loop=loop_robot)
+            cursor = await cnxn.cursor()
+            print(f'Создано подключение к базе данных {DB}')  ###
+        except Exception as e:
+            print("Подключение к базе данных  -  ошибка.", e)
+            return 1
 
     # чтение из бд данных о telegram-группах
     bot_groups = await load_groups_from_db(cursor)
+    if bot_groups == 1:
+        await cursor.close()
+        await cnxn.close()
+        ROBOT_START, ROBOT_STOP = False, False
+        lbl_msg_robot["text"] = 'Ошибка чтения из базы данных'
+        return 1
 
     lbl_msg_robot["text"] = 'Робот в рабочем режиме'
 
     while not ROBOT_STOP:
         msg_data_records = await load_records_from_db(cursor)
+        if msg_data_records == 1:
+            await cursor.close()
+            await cnxn.close()
+            ROBOT_START, ROBOT_STOP = False, False
+            lbl_msg_robot["text"] = 'Ошибка чтения из базы данных'
+            return 1
+
         print(msg_data_records)
         print()
         if len(msg_data_records) > 0:
@@ -159,10 +176,11 @@ async def robot_send_messages(cnxn, cursor, msg_data_records, bot_groups):
         for address in record_addresses:
             address = address.strip()
             if address not in bot_groups:
-                print(f'Бот не является участником группы {address}.\nСообщение не отправлено.')
+                print(f'Бот не является участником группы {address} или группа не добавлена в базу данных.\nСообщение не отправлено.\n')
                 # добавить оповещение админа, только 1 раз
-                msg = (f"Получен запрос на отправку сообщения в группу {address}, в которой бот не участвует.\n" +
-                        f"Запись в таблице {DB_TABLE} с id={record_id}")
+                msg = (f"Получен запрос на отправку сообщения в группу {address}, в которой бот не участвует, " +
+                        "или группа не добавлена в базу данных.\n" +
+                        f"Запись в таблице {DB_TABLE_MESSAGES} с id={record_id}")
                 url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage?chat_id={ADMIN_BOT_CHAT_ID}&text={msg}"
                 requests.get(url).json()
                 continue
@@ -172,7 +190,7 @@ async def robot_send_messages(cnxn, cursor, msg_data_records, bot_groups):
             try:
                 requests.get(url).json()
                 # print(requests.get(url).json())  ###
-                print(f'Сообщение {address} отправлено\n')
+                print(f'Сообщение {address} отправлено.\n')
             except Exception as e:
                 print('Ошибка отправки:\n', e)
 
@@ -183,19 +201,28 @@ async def robot_send_messages(cnxn, cursor, msg_data_records, bot_groups):
 # === DATABASE FUNCTIONS ===
 async def load_groups_from_db(cursor):
     # выборка из базы данных параметров telegram-групп бота
-    query = f"select group_title, group_chat_id from {DB_TABLE_GROUPS} where bot_name='{BOT_NAME}' and is_active"
-    await cursor.execute(query)
-    rows = await cursor.fetchall()
-    groups_dict = {row[0]: row[1] for row in rows}
-    return groups_dict
+    try:
+        query = f"select group_title, group_chat_id from {DB_TABLE_GROUPS} where bot_name='{BOT_NAME}' and is_active"
+        await cursor.execute(query)
+        rows = await cursor.fetchall()
+        groups_dict = {row[0]: row[1] for row in rows}
+        return groups_dict
+    except Exception as e:
+        print('Ошибка чтения из базы данных.', e)
+        return 1
+
 
 async def load_records_from_db(cursor):
     # выборка из базы данных необработанных (новых) записей
     if IS_MOCK_DB:
         pass
     else:
-        await cursor.execute(f'select UniqueIndexField, msg_text, adrto from {DB_TABLE} where dates is null order by datep')
-        rows = await cursor.fetchall()  # список кортежей
+        try:
+            await cursor.execute(f'select UniqueIndexField, msg_text, adrto from {DB_TABLE_MESSAGES} where dates is null order by datep')
+            rows = await cursor.fetchall()  # список кортежей
+        except Exception as e:
+            print('Ошибка чтения из базы данных.', e)
+            return 1
     return rows
 
 async def set_record_handling_time_in_db(cnxn, cursor, id):
@@ -204,7 +231,7 @@ async def set_record_handling_time_in_db(cnxn, cursor, id):
         pass
     else:
         dt_string = str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-        await cursor.execute(f"update {DB_TABLE} set dates = '{dt_string}' where UniqueIndexField = {id}")
+        await cursor.execute(f"update {DB_TABLE_MESSAGES} set dates = '{dt_string}' where UniqueIndexField = {id}")
         await cnxn.commit()
 
 async def rec_to_log(rec):

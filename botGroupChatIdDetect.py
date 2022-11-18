@@ -1,8 +1,10 @@
 import sys, asyncio, configparser
 import aioodbc, requests
 
+# загрузка конфигурации
+CONFIG_FILE = 'config.ini'
 config = configparser.ConfigParser()
-config.read('config.ini')
+config.read(CONFIG_FILE, encoding='utf-8')
 
 BOT_NAME = config['common']['bot_name']
 BOT_TOKEN = config['common']['bot_token']
@@ -18,9 +20,9 @@ async def detect_bot_group():
         cnxn = await aioodbc.connect(dsn=CONNECTION_STRING, loop=loop)
         cursor = await cnxn.cursor()
     except:
-        "Подключение к базе данных  -  ошибка"
+        print("Подключение к базе данных  -  ошибка")
         return 1
-    if await check_bot_group_in_db(cursor):  # проверяет наличие группы бота в бд
+    if await check_bot_group_in_db(cnxn, cursor):  # проверяет наличие группы бота в бд
         print(f'Параметры группы {GROUP_TITLE} для бота {BOT_NAME} уже записаны в базу данных.')
         await cursor.close()
         await cnxn.close()
@@ -32,10 +34,14 @@ async def detect_bot_group():
         res = requests.get(url).json()
     except Exception as e:
         print('Ошибка: ', e)
+        await cursor.close()
+        await cnxn.close()
         return 1
     if res['ok'] == False:
         print('Получен ответ об ошибке:')
         print(res)
+        await cursor.close()
+        await cnxn.close()
         return 1
 
     # итерация с конца обновлений к началу, если бот удален из группы, выводит сообщение и заканчивает итерацию
@@ -53,9 +59,12 @@ async def detect_bot_group():
             print('group_chat_id:', group_chat_id)
             await save_group_params_to_db(BOT_NAME, GROUP_TITLE, group_chat_id, cnxn, cursor)
             print(f'Параметры группы {GROUP_TITLE} для бота {BOT_NAME} записаны в базу данных.')
+            await cursor.close()
+            await cnxn.close()
             return 0
     
-    print('Ошибка определения группы. Активируйте бота в telegram (если он не активирован) и/или добавьте в группу.')
+    print(f'Ошибка определения группы {GROUP_TITLE}.')
+    print('Активируйте бота в telegram (если он не активирован) и/или добавьте в группу.')
     print('Если бот в группе, попробуйте удалить его и добавить заново.')
     await cursor.close()
     await cnxn.close()
@@ -70,10 +79,12 @@ async def save_group_params_to_db(BOT_NAME, GROUP_TITLE, group_chat_id, cnxn, cu
         await cnxn.commit()
     except:
         print('Ошибка записи в базу данных.')
+        await cursor.close()
+        await cnxn.close()
         sys.exit()
 
 
-async def check_bot_group_in_db(cursor):
+async def check_bot_group_in_db(cnxn, cursor):
     # выборка из базы данных
     try:
         query = f"select id from {DB_TABLE_GROUPS} where group_title='{GROUP_TITLE}' and bot_name='{BOT_NAME}'"
@@ -81,6 +92,8 @@ async def check_bot_group_in_db(cursor):
         rows = await cursor.fetchall()
     except:
         print('Ошибка чтения из базы данных.')
+        await cursor.close()
+        await cnxn.close()
         sys.exit()
     r = True if len(rows) > 0 else False
     return r
