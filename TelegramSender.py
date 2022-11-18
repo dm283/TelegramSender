@@ -11,10 +11,9 @@ config.read(CONFIG_FILE, encoding='utf-8')
 # загрузка ключа шифрования
 with open('rec-k.txt') as f:
     rkey = f.read().encode('utf-8')
+refKey = Fernet(rkey)
 
 hashed_user_credentials_password = config['user_credentials']['password']
-
-refKey = Fernet(rkey)
 user_credentials_password = (refKey.decrypt(hashed_user_credentials_password).decode('utf-8'))
 
 IS_MOCK_DB = True if config['database']['is_mock_db'] == 'True' else False # для локального тестирования приложение работает с симулятором базы данных файл mock-db.json
@@ -267,7 +266,7 @@ async def show():
         root.update()
         await asyncio.sleep(.1)
 
-development_mode = True     # True - для разработки окна робота переход сразу на него без sign in
+development_mode = False     # True - для разработки окна робота переход сразу на него без sign in
 if development_mode:    # для разработки окна робота переход сразу на него без sign in
     SIGN_IN_FLAG = True
 else:
