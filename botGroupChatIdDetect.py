@@ -1,13 +1,22 @@
 import sys, asyncio, configparser
 import aioodbc, requests
+from cryptography.fernet import Fernet
 
 # загрузка конфигурации
 CONFIG_FILE = 'config.ini'
 config = configparser.ConfigParser()
 config.read(CONFIG_FILE, encoding='utf-8')
 
+# загрузка ключа шифрования
+with open('rec-k.txt') as f:
+    rkey = f.read().encode('utf-8')
+refKey = Fernet(rkey)
+
+hashed_common_bot_token = config['common']['bot_token']
+common_bot_token = (refKey.decrypt(hashed_common_bot_token).decode('utf-8'))
+
 BOT_NAME = config['common']['bot_name']
-BOT_TOKEN = config['common']['bot_token']
+BOT_TOKEN = common_bot_token
 
 DB = config['database']['db']  # база данных mssql/posgres
 DB_TABLE_GROUPS = config['database']['db_table_groups']  # db.schema.table  таблица с telegram-группами
@@ -48,8 +57,8 @@ async def detect_bot_group():
     if 'result' not in res:
         print('Ошибка, получен некорректный ответ, отсутствует поле result.')
         return 1
-    for i in range(len(res['result'])-1, 0, -1):
-        s = res['result'][i]
+    for i in range(len(res['result']), 0, -1):
+        s = res['result'][i-1]
         if 'my_chat_member' in s and s['my_chat_member']['new_chat_member']['status'] == 'left':
             break
         if ('my_chat_member' in s 

@@ -15,6 +15,8 @@ refKey = Fernet(rkey)
 
 hashed_user_credentials_password = config['user_credentials']['password']
 user_credentials_password = (refKey.decrypt(hashed_user_credentials_password).decode('utf-8'))
+hashed_common_bot_token = config['common']['bot_token']
+common_bot_token = (refKey.decrypt(hashed_common_bot_token).decode('utf-8'))
 
 IS_MOCK_DB = True if config['database']['is_mock_db'] == 'True' else False # для локального тестирования приложение работает с симулятором базы данных файл mock-db.json
 DB = config['database']['db']  # база данных mssql/posgres
@@ -28,7 +30,7 @@ USER_PASSWORD = user_credentials_password
 ADMIN_BOT_CHAT_ID = config['common']['admin_bot_chat_id']  # чат админа с ботом
 
 BOT_NAME = config['common']['bot_name']
-BOT_TOKEN = config['common']['bot_token']
+BOT_TOKEN = common_bot_token
 
 ROBOT_START = False
 ROBOT_STOP = False
