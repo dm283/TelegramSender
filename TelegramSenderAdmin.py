@@ -67,23 +67,21 @@ async def btn_test_db_click():
             cursor = await cnxn.cursor()
             lbl_msg_test_db['text'] = f"Подключение к базе данных {config['database']['db']}  -  OK"
             await asyncio.sleep(1)
+            lbl_msg_test_db['text'] = 'Обращение к таблицам базы данных .....'
             try:
-                lbl_msg_test_db['text'] = f"Обращение к таблице {config['database']['db_table_messages']} ....."
                 await cursor.execute(f"select count(id) from {config['database']['db_table_messages']}")
                 await cursor.fetchall()
-                lbl_msg_test_db['text'] = f"Обращение к таблице {config['database']['db_table_messages']}  -  OK"
                 await asyncio.sleep(1)
                 try:
-                    lbl_msg_test_db['text'] = f"Обращение к таблице {config['database']['db_table_groups']} ....."
                     await cursor.execute(f"select count(id) from {config['database']['db_table_groups']}")
                     await cursor.fetchall()
-                    lbl_msg_test_db['text'] = f"Обращение к таблице {config['database']['db_table_groups']}  -  OK"
+                    lbl_msg_test_db['text'] = f"Обращение к таблицам базы данных  -  OK"
                     await asyncio.sleep(1)
                     lbl_msg_test_db['text'] = 'Тестирование успешно завершено'
                 except:
-                    lbl_msg_test_db['text'] = f"Обращение к таблице {config['database']['db_table_groups']}  -  ошибка"
+                    lbl_msg_test_db['text'] = f"Обращение к таблице {config['database']['db_table_groups'].split('.')[-1]} - ошибка"
             except:
-                lbl_msg_test_db['text'] = f"Обращение к таблице {config['database']['db_table_messages']}  -  ошибка"
+                lbl_msg_test_db['text'] = f"Обращение к таблице {config['database']['db_table_messages'].split('.')[-1]} - ошибка"
             
             await cursor.close()
             await cnxn.close()
@@ -92,7 +90,7 @@ async def btn_test_db_click():
 
 async def btn_test_message_to_admin_click():
     # тестирует отправку сообщений в чат бота с админом
-    lbl_msg_test_admin_chat['text'] = f"Отправка тестового сообщения в telegram-чат бота с админом ....."
+    lbl_msg_test_admin_chat['text'] = f"Отправка тестового сообщения ....."
     await asyncio.sleep(1)
     msg = 'Тестовое сообщение'
     url = f"https://api.telegram.org/bot{config['common']['bot_token']}/sendMessage?chat_id={config['common']['admin_bot_chat_id']}&text={msg}"
@@ -187,7 +185,7 @@ root = tk.Tk()
 root.resizable(0, 0)  # делает неактивной кнопку Развернуть
 root.title('TelegramSender administration panel')
 frm = tk.Frame(bg=THEME_COLOR, width=400, height=400)
-lbl_sign = tk.Label(master=frm, text='Sign in to TelegramSender', bg=LBL_COLOR, font=("Arial", 15), width=20, height=2)
+lbl_sign = tk.Label(master=frm, text='Sign in to TelegramSender', bg=LBL_COLOR, font=("Arial", 15), width=21, height=2)  #bg=LBL_COLOR
 lbl_user = tk.Label(master=frm, text='Username', bg=LBL_COLOR, font=("Arial", 12), anchor='w', width=25, height=2)
 ent_user = tk.Entry(master=frm, bg=ENT_COLOR, font=("Arial", 12), width=25, )
 lbl_password = tk.Label(master=frm, text='Password', bg=LBL_COLOR, font=("Arial", 12), anchor='w', width=25, height=2)
@@ -201,7 +199,7 @@ btn_sign = tk.Button(master=frm, bg=BTN_COLOR, fg='White', text='Sign in', font=
                     width=22, height=1, command=lambda: loop.create_task(btn_sign_click()))
 lbl_msg_sign = tk.Label(master=frm, bg=LBL_COLOR, fg='PaleVioletRed', font=("Arial", 12), width=25, height=2)
 
-development_mode = False     # True - для разработки окна робота переход сразу на него без sign in
+development_mode = True     # True - для разработки окна робота переход сразу на него без sign in
 if development_mode:    # для разработки окна робота переход сразу на него без sign in
     SIGN_IN_FLAG = True
 else:
@@ -251,8 +249,10 @@ cbt['admin_credentials']['password']['command'] = lambda: loop_admin.create_task
 btn_test_db = tk.Button(frm_test['database'], text='Тест', width = 15, command=lambda: loop_admin.create_task(btn_test_db_click()))
 lbl_msg_test_db = tk.Label(frm_test['database'], bg=THEME_COLOR, width = 45, anchor='w', )
 
-btn_test_message_to_admin = tk.Button(frm_test['common'], text='Тестовое сообщение админу', width = 15, command=lambda: loop_admin.create_task(btn_test_message_to_admin_click()))
-lbl_msg_test_admin_chat = tk.Label(frm_test['common'], bg=THEME_COLOR, width = 45, anchor='w', )
+btn_test_message_to_admin = tk.Button(frm_test['common'], text='Тест', width = 15, 
+        command=lambda: loop_admin.create_task(btn_test_message_to_admin_click()))
+lbl_msg_test_admin_chat = tk.Label(frm_test['common'], text='- тестовое сообщение администратору бота', 
+        bg=THEME_COLOR, width = 45, anchor='w', )
 
 # формирование фрейма с общим функционалом (сохранение конфига)
 frm_footer = tk.Frame(root_admin, width=400, height=280, )
