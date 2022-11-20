@@ -245,7 +245,7 @@ root = tk.Tk()
 root.resizable(0, 0)  # делает неактивной кнопку Развернуть
 root.title('TelegramSender')
 frm = tk.Frame(bg=THEME_COLOR, width=400, height=400)
-lbl_sign = tk.Label(master=frm, text='Sign in to TelegramSender', bg=LBL_COLOR, font=("Arial", 15), width=20, height=2)
+lbl_sign = tk.Label(master=frm, text='Sign in to TelegramSender', bg=LBL_COLOR, font=("Arial", 15), width=21, height=2)
 lbl_user = tk.Label(master=frm, text='Username', bg=LBL_COLOR, font=("Arial", 12), anchor='w', width=25, height=2)
 ent_user = tk.Entry(master=frm, bg=ENT_COLOR, font=("Arial", 12), width=25, )
 lbl_password = tk.Label(master=frm, text='Password', bg=LBL_COLOR, font=("Arial", 12), anchor='w', width=25, height=2)
