@@ -16,8 +16,9 @@ with open('rec-k.txt') as f:
 refKey = Fernet(rkey)
 
 # расшифровка паролей
-password_section_key_list = [ ('user_credentials', 'password'), ('admin_credentials', 'password'), ]
-for s in password_section_key_list:
+password_section_key_list = [ ('user_credentials', 'password'), ('admin_credentials', 'password')]
+hashed_section_key_list = [ ('user_credentials', 'password'), ('admin_credentials', 'password'), ('common', 'bot_token')]
+for s in hashed_section_key_list:
     hashed = config[s[0]][s[1]]
     config[s[0]][s[1]] = (refKey.decrypt(hashed).decode('utf-8')) if hashed != '' else config[s[0]][s[1]]
 
@@ -113,7 +114,7 @@ async def btn_save_config_click():
             # описания секций остаются неизменными
             if k == 'section_description':
                 continue
-            if (s, k) in password_section_key_list:
+            if (s, k) in hashed_section_key_list:
                 # если параметр подлежит шифрованию - хэширование перед записью в config
                 scrt_value = ent[s][k].get().encode('utf-8')
                 hashed_scrt_value = refKey.encrypt(scrt_value)
@@ -127,7 +128,7 @@ async def btn_save_config_click():
     # после сохранения конфига сообщения о тестировании обнуляются
     lbl_msg_test_admin_chat['text'], lbl_msg_test_db['text'] = '', ''
     # запись в переменную расшифрованного пароля (инче остается хэшированный, который нельзя использовать)
-    for (s, k) in password_section_key_list:
+    for (s, k) in hashed_section_key_list:
         config[s][k] = ent[s][k].get()
 
 async def show_signin():
@@ -199,7 +200,7 @@ btn_sign = tk.Button(master=frm, bg=BTN_COLOR, fg='White', text='Sign in', font=
                     width=22, height=1, command=lambda: loop.create_task(btn_sign_click()))
 lbl_msg_sign = tk.Label(master=frm, bg=LBL_COLOR, fg='PaleVioletRed', font=("Arial", 12), width=25, height=2)
 
-development_mode = True     # True - для разработки окна робота переход сразу на него без sign in
+development_mode = False     # True - для разработки окна робота переход сразу на него без sign in
 if development_mode:    # для разработки окна робота переход сразу на него без sign in
     SIGN_IN_FLAG = True
 else:
