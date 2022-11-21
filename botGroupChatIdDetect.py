@@ -12,15 +12,15 @@ with open('rec-k.txt') as f:
     rkey = f.read().encode('utf-8')
 refKey = Fernet(rkey)
 
-hashed_common_bot_token = config['common']['bot_token']
+hashed_common_bot_token = config['common']['bot_token'].split('\t#')[0]
 common_bot_token = (refKey.decrypt(hashed_common_bot_token).decode('utf-8'))
 
-BOT_NAME = config['common']['bot_name']
+BOT_NAME = config['common']['bot_name'].split('\t#')[0]
 BOT_TOKEN = common_bot_token
 
-DB = config['database']['db']  # база данных mssql/posgres
-DB_TABLE_GROUPS = config['database']['db_table_groups']  # db.schema.table  таблица с telegram-группами
-CONNECTION_STRING = config['database']['connection_string']  # odbc driver system dsn name
+DB = config['database']['db'].split('\t#')[0]  # база данных mssql/posgres
+DB_TABLE_GROUPS = config['database']['db_table_groups'].split('\t#')[0]  # db.schema.table  таблица с telegram-группами
+CONNECTION_STRING = config['database']['connection_string'].split('\t#')[0]  # odbc driver system dsn name
 
 
 async def detect_bot_group():

@@ -2,7 +2,6 @@ import sys, configparser, datetime, asyncio, tkinter as tk
 import requests, aioodbc
 from cryptography.fernet import Fernet
 
-
 # загрузка конфигурации
 CONFIG_FILE = 'config.ini'
 config = configparser.ConfigParser()
@@ -13,23 +12,23 @@ with open('rec-k.txt') as f:
     rkey = f.read().encode('utf-8')
 refKey = Fernet(rkey)
 
-hashed_user_credentials_password = config['user_credentials']['password']
+hashed_user_credentials_password = config['user_credentials']['password'].split('\t#')[0]
 user_credentials_password = (refKey.decrypt(hashed_user_credentials_password).decode('utf-8'))
-hashed_common_bot_token = config['common']['bot_token']
+hashed_common_bot_token = config['common']['bot_token'].split('\t#')[0]
 common_bot_token = (refKey.decrypt(hashed_common_bot_token).decode('utf-8'))
 
-IS_MOCK_DB = True if config['database']['is_mock_db'] == 'True' else False # для локального тестирования приложение работает с симулятором базы данных файл mock-db.json
-DB = config['database']['db']  # база данных mssql/posgres
-DB_TABLE_MESSAGES = config['database']['db_table_messages']  # db.schema.table
-DB_TABLE_GROUPS = config['database']['db_table_groups']  # db.schema.table  таблица с telegram-группами
-CONNECTION_STRING = config['database']['connection_string']  # odbc driver system dsn name
-CHECK_DB_PERIOD = int(config['common']['check_db_period'])  # период проверки новых записей в базе данных
+IS_MOCK_DB = True if config['database']['is_mock_db'].split('\t#')[0] == 'True' else False # для локального тестирования приложение работает с симулятором базы данных файл mock-db.json
+DB = config['database']['db'].split('\t#')[0]  # база данных mssql/posgres
+DB_TABLE_MESSAGES = config['database']['db_table_messages'].split('\t#')[0]  # db.schema.table
+DB_TABLE_GROUPS = config['database']['db_table_groups'].split('\t#')[0]  # db.schema.table  таблица с telegram-группами
+CONNECTION_STRING = config['database']['connection_string'].split('\t#')[0]  # odbc driver system dsn name
+CHECK_DB_PERIOD = int(config['common']['check_db_period'].split('\t#')[0])  # период проверки новых записей в базе данных
 
-USER_NAME = config['user_credentials']['name']
+USER_NAME = config['user_credentials']['name'].split('\t#')[0]
 USER_PASSWORD = user_credentials_password
-ADMIN_BOT_CHAT_ID = config['common']['admin_bot_chat_id']  # чат админа с ботом
+ADMIN_BOT_CHAT_ID = config['admin_credentials']['admin_bot_chat_id'].split('\t#')[0]  # чат админа с ботом
 
-BOT_NAME = config['common']['bot_name']
+BOT_NAME = config['common']['bot_name'].split('\t#')[0]
 BOT_TOKEN = common_bot_token
 
 ROBOT_START = False
