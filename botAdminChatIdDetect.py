@@ -12,10 +12,10 @@ with open('rec-k.txt') as f:
     rkey = f.read().encode('utf-8')
 refKey = Fernet(rkey)
 
-hashed_common_bot_token = config['common']['bot_token']
+hashed_common_bot_token = config['common']['bot_token'].split('\t#')[0]
 common_bot_token = (refKey.decrypt(hashed_common_bot_token).decode('utf-8'))
 
-BOT_NAME = config['common']['bot_name']
+BOT_NAME = config['common']['bot_name'].split('\t#')[0]
 BOT_TOKEN = common_bot_token
 
 async def detect_user_chat_id():
@@ -51,8 +51,8 @@ async def detect_user_chat_id():
 
 async def save_user_chat_id(user_chat_id: str):
     # сохраняет id чата с пользователем username
-    config['common']['admin_bot_username'] = TELEGRAM_USERNAME
-    config['common']['admin_bot_chat_id'] = user_chat_id
+    config['admin_credentials']['name'] = TELEGRAM_USERNAME + '\t# ' + config['admin_credentials']['name'].split('\t#')[1]
+    config['admin_credentials']['admin_bot_chat_id'] = user_chat_id + '\t# ' + config['admin_credentials']['admin_bot_chat_id'].split('\t#')[1]
     with open(CONFIG_FILE, 'w', encoding='utf-8') as configfile:
         config.write(configfile)
 

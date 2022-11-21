@@ -1,5 +1,3 @@
-# добавить detectgroup, detectadminchat, отправка тестового сообщения админу  - все на вкладке common
-
 import sys, configparser, datetime, asyncio, tkinter as tk
 import requests, aioodbc
 from cryptography.fernet import Fernet
@@ -14,6 +12,16 @@ config.read(CONFIG_FILE, encoding='utf-8')
 with open('rec-k.txt') as f:
     rkey = f.read().encode('utf-8')
 refKey = Fernet(rkey)
+
+# config {} = реальные значения; config_show {} = значения для отрисовки
+config_show = {}
+for s in config.sections():
+    print(s)
+    config_show[s] = {}
+    for k, v in config.items(s):
+        config[s][k] = v.split('\t# ')[0]
+        config_show[s][k] = v.split('\t# ')
+        print('\t', config[s][k], config_show[s][k])
 
 # расшифровка паролей
 password_section_key_list = [ ('user_credentials', 'password'), ('admin_credentials', 'password')]
@@ -55,7 +63,7 @@ async def show_password(s, k):
 
 async def btn_test_db_click():
     # тестирует подключение к базе данных
-    if config['database'].getboolean('is_mock_db'):
+    if config['database']['is_mock_db'] == 'True':
         #  при IS_MOCK_DB приложение работает с mock-database (файл mock-db.json)
         lbl_msg_test_db['text'] = 'Используется mock-database'
         await asyncio.sleep(1)
@@ -94,7 +102,7 @@ async def btn_test_message_to_admin_click():
     lbl_msg_test_admin_chat['text'] = f"Отправка тестового сообщения ....."
     await asyncio.sleep(1)
     msg = 'Тестовое сообщение'
-    url = f"https://api.telegram.org/bot{config['common']['bot_token']}/sendMessage?chat_id={config['common']['admin_bot_chat_id']}&text={msg}"
+    url = f"https://api.telegram.org/bot{config['common']['bot_token']}/sendMessage?chat_id={config['admin_credentials']['admin_bot_chat_id']}&text={msg}"
     try:
         res = requests.get(url).json()
         if res['ok'] == False:
@@ -112,7 +120,7 @@ async def btn_save_config_click():
     for s in config.sections():
         for k, v in config.items(s):
             # описания секций остаются неизменными
-            if k == 'section_description':
+            if k in ['section_description', 'section_label']:
                 continue
             if (s, k) in hashed_section_key_list:
                 # если параметр подлежит шифрованию - хэширование перед записью в config
@@ -122,6 +130,9 @@ async def btn_save_config_click():
             else:
                 # обычный параметр
                 config[s][k] = ent[s][k].get()
+            # добавляет комментарий к параметру, если он предусмотрен (записан 2-м элементом в список value словаря config_show )
+            if len(config_show[s][k]) > 1:
+                config[s][k] = config[s][k] + '\t# ' + config_show[s][k][1]
     with open(CONFIG_FILE, 'w', encoding='utf-8') as configfile:
         config.write(configfile)
     lbl_config_msg['text'] = f'Конфигурация сохранена в файл {CONFIG_FILE}'
@@ -150,13 +161,13 @@ async def show_admin():
     # рисует окно администрирования
     notebook.pack(padx=10, pady=10, fill='both', expand=True)
     for s in config.sections():
-        notebook.add(frm[s], text = s)
+        notebook.add(frm[s], text = config[s]['section_label'])
         frm_params[s].pack(padx=5, pady=(5, 0), fill='both', expand=True)
         frm_test[s].pack(padx=5, pady=(1, 5), fill='both', expand=True)
         lbl[s]['section_description'].grid(row = 0, columnspan = 3, sticky = 'w', padx = 5, pady = 5)
         r = 1
         for k, v in config.items(s):
-            if k == 'section_description':
+            if k in ['section_description', 'section_label']:
                 continue
             lbl[s][k].grid(row = r, column = 0, sticky = 'w', padx = 5, pady = 5)
             ent[s][k].grid(row = r, column = 1, sticky = 'w', padx = 5, pady = 5)
@@ -164,12 +175,13 @@ async def show_admin():
             if (s, k) in password_section_key_list:
                 cbt[s][k].grid(row = r, column = 2, sticky = 'w', )
             r += 1
+        # положение кнопок тестирования (в окне с наибольшим кол-вом параметров - grid, в прочих - place)
         if s == 'database':
-            btn_test_db.place(x=5, y=3)
-            lbl_msg_test_db.place(x=130, y=5)
+            btn_test_db.grid(row = 0, column = 0, padx = 5, pady = 5)    
+            lbl_msg_test_db.grid(row = 0, column = 1, padx = 5, pady = 5)
         elif s == 'common':
-            btn_test_message_to_admin.grid(row = 0, column = 0, padx = 5, pady = 5)
-            lbl_msg_test_admin_chat.grid(row = 0, column = 1, padx = 5, pady = 5)
+            btn_test_message_to_admin.place(x=5, y=3)
+            lbl_msg_test_admin_chat.place(x=130, y=5)
 
     frm_footer.pack(padx=10, pady=(0, 10), fill='both', expand=True)  
     btn_save_config.grid(row = 0, column = 0)
@@ -233,7 +245,9 @@ for s in config.sections():
         if k == 'section_description':
             lbl[s][k] = tk.Label(frm_params[s], bg=THEME_COLOR, text = v, )
             continue
-        lbl[s][k] = tk.Label(frm_params[s], bg=THEME_COLOR, text = k, width=20, anchor='w', )
+        lbl[s][k] = tk.Label(frm_params[s], bg=THEME_COLOR, 
+            text = config_show[s][k][1] if len(config_show[s][k]) > 1 else v,
+        width=20, anchor='w', )
         ent[s][k] = tk.Entry(frm_params[s], width=30, highlightthickness=1, highlightcolor = "Gainsboro", )
 
 # формирование виджетов для полей со скрытием контента
@@ -248,7 +262,8 @@ cbt['admin_credentials']['password']['command'] = lambda: loop_admin.create_task
 
 # формирование элемнтов с функционалом тестирования
 btn_test_db = tk.Button(frm_test['database'], text='Тест', width = 15, command=lambda: loop_admin.create_task(btn_test_db_click()))
-lbl_msg_test_db = tk.Label(frm_test['database'], bg=THEME_COLOR, width = 45, anchor='w', )
+lbl_msg_test_db = tk.Label(frm_test['database'], text ='- тестирует подключение к базе данных',
+        bg=THEME_COLOR, width = 45, anchor='w', )
 
 btn_test_message_to_admin = tk.Button(frm_test['common'], text='Тест', width = 15, 
         command=lambda: loop_admin.create_task(btn_test_message_to_admin_click()))
