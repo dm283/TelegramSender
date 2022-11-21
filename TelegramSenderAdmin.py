@@ -137,19 +137,11 @@ async def btn_save_config_click():
     # после сохранения конфига сообщения о тестах меняются на изначальные
     lbl_msg_test_admin_chat['text'] = '- тестовое сообщение администратору бота'
     lbl_msg_test_db['text'] = '- тестирует подключение к базе данных'
-    # запись в переменную расшифрованного пароля (инче остается хэшированный, который нельзя использовать)
-        # for (s, k) in hashed_section_key_list:
-    #     config[s][k] = ent[s][k].get()
     # запись обратно в переменные config значений без комментариев
     for s in config.sections():
         for k, v in config.items(s):
-            if k in ['section_description', 'section_label']:
-                continue
-            if (s, k) in hashed_section_key_list:
+            if k not in ['section_description', 'section_label']:
                 config[s][k] = ent[s][k].get()
-            else:
-                config[s][k] = ent[s][k].get()
-
 
 
 async def show_signin():
@@ -253,11 +245,11 @@ for s in config.sections():
 
     for k, v in config.items(s):
         if k == 'section_description':
-            lbl[s][k] = tk.Label(frm_params[s], bg=THEME_COLOR, text = v, )
+            lbl[s][k] = tk.Label(frm_params[s], bg=THEME_COLOR, text = v, font=('Segoe UI', 10, 'bold'))
             continue
-        lbl[s][k] = tk.Label(frm_params[s], bg=THEME_COLOR, 
+        lbl[s][k] = tk.Label(frm_params[s], bg=THEME_COLOR,
             text = config_show[s][k][1] if len(config_show[s][k]) > 1 else v,
-        width=20, anchor='w', )
+        width=27, anchor='w', )
         ent[s][k] = tk.Entry(frm_params[s], width=30, highlightthickness=1, highlightcolor = "Gainsboro", )
 
 # формирование виджетов для полей со скрытием контента
@@ -265,19 +257,19 @@ cbt_v1, cbt = {}, {}
 for s, k in password_section_key_list:
     cbt_v1[s], cbt[s] = {}, {}
     cbt_v1[s][k] = tk.IntVar(value = 0)
-    cbt[s][k] = tk.Checkbutton(frm_params[s], bg=THEME_COLOR, text = 'Show password', variable = cbt_v1[s][k], onvalue = 1, offvalue = 0)
+    cbt[s][k] = tk.Checkbutton(frm_params[s], bg=THEME_COLOR, text = 'Показать пароль', variable = cbt_v1[s][k], onvalue = 1, offvalue = 0)
     ent[s][k]['show'] = '*'
 cbt['user_credentials']['password']['command'] = lambda: loop_admin.create_task(show_password('user_credentials', 'password'))
 cbt['admin_credentials']['password']['command'] = lambda: loop_admin.create_task(show_password('admin_credentials', 'password'))
 
 # формирование элемнтов с функционалом тестирования
 btn_test_db = tk.Button(frm_test['database'], text='Тест', width = 15, command=lambda: loop_admin.create_task(btn_test_db_click()))
-lbl_msg_test_db = tk.Label(frm_test['database'], text ='- тестирует подключение к базе данных',
+lbl_msg_test_db = tk.Label(frm_test['database'], text ='- тестировать подключение к базе данных',
         bg=THEME_COLOR, width = 45, anchor='w', )
 
 btn_test_message_to_admin = tk.Button(frm_test['common'], text='Тест', width = 15, 
         command=lambda: loop_admin.create_task(btn_test_message_to_admin_click()))
-lbl_msg_test_admin_chat = tk.Label(frm_test['common'], text='- тестовое сообщение администратору бота', 
+lbl_msg_test_admin_chat = tk.Label(frm_test['common'], text='- отправить тестовое сообщение администратору бота', 
         bg=THEME_COLOR, width = 45, anchor='w', )
 
 # формирование фрейма с общим функционалом (сохранение конфига)
