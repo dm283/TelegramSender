@@ -16,12 +16,10 @@ refKey = Fernet(rkey)
 # config {} = реальные значения; config_show {} = значения для отрисовки
 config_show = {}
 for s in config.sections():
-    print(s)
     config_show[s] = {}
     for k, v in config.items(s):
         config[s][k] = v.split('\t# ')[0]
         config_show[s][k] = v.split('\t# ')
-        print('\t', config[s][k], config_show[s][k])
 
 # расшифровка паролей
 password_section_key_list = [ ('user_credentials', 'password'), ('admin_credentials', 'password')]
@@ -106,7 +104,7 @@ async def btn_test_message_to_admin_click():
     try:
         res = requests.get(url).json()
         if res['ok'] == False:
-            lbl_msg_test_admin_chat['text'] = f'Получен ответ об ошибке:\n{res}'
+            lbl_msg_test_admin_chat['text'] = f"Получен ответ об ошибке:\n{res['description']}"
         else:
             lbl_msg_test_admin_chat['text'] = 'Тестовое сообщение успешно отправлено'
         await asyncio.sleep(1)
@@ -136,11 +134,23 @@ async def btn_save_config_click():
     with open(CONFIG_FILE, 'w', encoding='utf-8') as configfile:
         config.write(configfile)
     lbl_config_msg['text'] = f'Конфигурация сохранена в файл {CONFIG_FILE}'
-    # после сохранения конфига сообщения о тестировании обнуляются
-    lbl_msg_test_admin_chat['text'], lbl_msg_test_db['text'] = '', ''
+    # после сохранения конфига сообщения о тестах меняются на изначальные
+    lbl_msg_test_admin_chat['text'] = '- тестовое сообщение администратору бота'
+    lbl_msg_test_db['text'] = '- тестирует подключение к базе данных'
     # запись в переменную расшифрованного пароля (инче остается хэшированный, который нельзя использовать)
-    for (s, k) in hashed_section_key_list:
-        config[s][k] = ent[s][k].get()
+        # for (s, k) in hashed_section_key_list:
+    #     config[s][k] = ent[s][k].get()
+    # запись обратно в переменные config значений без комментариев
+    for s in config.sections():
+        for k, v in config.items(s):
+            if k in ['section_description', 'section_label']:
+                continue
+            if (s, k) in hashed_section_key_list:
+                config[s][k] = ent[s][k].get()
+            else:
+                config[s][k] = ent[s][k].get()
+
+
 
 async def show_signin():
     # рисует окно входа

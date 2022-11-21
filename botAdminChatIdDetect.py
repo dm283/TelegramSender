@@ -51,8 +51,8 @@ async def detect_user_chat_id():
 
 async def save_user_chat_id(user_chat_id: str):
     # сохраняет id чата с пользователем username
-    config['admin_credentials']['name'] = TELEGRAM_USERNAME + '\t# ' + config['admin_credentials']['name'].split('\t#')[1]
-    config['admin_credentials']['admin_bot_chat_id'] = user_chat_id + '\t# ' + config['admin_credentials']['admin_bot_chat_id'].split('\t#')[1]
+    config['admin_credentials']['name'] = TELEGRAM_USERNAME + '\t# ' + config['admin_credentials']['name'].split('\t# ')[1]
+    config['admin_credentials']['admin_bot_chat_id'] = user_chat_id + '\t# ' + config['admin_credentials']['admin_bot_chat_id'].split('\t# ')[1]
     with open(CONFIG_FILE, 'w', encoding='utf-8') as configfile:
         config.write(configfile)
 
