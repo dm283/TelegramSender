@@ -20,13 +20,15 @@ common_bot_token = (refKey.decrypt(hashed_common_bot_token).decode('utf-8'))
 IS_MOCK_DB = True if config['database']['is_mock_db'].split('\t#')[0] == 'True' else False # для локального тестирования приложение работает с симулятором базы данных файл mock-db.json
 DB = config['database']['db'].split('\t#')[0]  # база данных mssql/posgres
 DB_TABLE_MESSAGES = config['database']['db_table_messages'].split('\t#')[0]  # db.schema.table
-DB_TABLE_GROUPS = config['database']['db_table_groups'].split('\t#')[0]  # db.schema.table  таблица с telegram-группами
+DB_TABLE_TELEGRAM_CHATS = config['database']['db_table_telegram_chats'].split('\t#')[0]  # db.schema.table  таблица с telegram-чатами
+#DB_TABLE_GROUPS = config['database']['db_table_groups'].split('\t#')[0]  # db.schema.table  таблица с telegram-группами
 CONNECTION_STRING = config['database']['connection_string'].split('\t#')[0]  # odbc driver system dsn name
 CHECK_DB_PERIOD = int(config['common']['check_db_period'].split('\t#')[0])  # период проверки новых записей в базе данных
 
 USER_NAME = config['user_credentials']['name'].split('\t#')[0]
 USER_PASSWORD = user_credentials_password
-ADMIN_BOT_CHAT_ID = config['admin_credentials']['admin_bot_chat_id'].split('\t#')[0]  # чат админа с ботом
+ADMIN_BOT_CHAT_ID = str()  # объявление глобальной константы, которая записывается в функции load_telegram_chats_from_db
+# config['admin_credentials']['admin_bot_chat_id'].split('\t#')[0]  # чат админа с ботом
 
 BOT_NAME = config['common']['bot_name'].split('\t#')[0]
 BOT_TOKEN = common_bot_token
@@ -109,7 +111,7 @@ async def window_robot():
 # === MESSENGER FUNCTIONS ===
 async def robot():
     # запускает робота
-    global ROBOT_START, ROBOT_STOP
+    global ROBOT_START, ROBOT_STOP, ADMIN_BOT_CHAT_ID
     if ROBOT_START or ROBOT_STOP:
         return
     ROBOT_START = True  # флаг старта робота, предотвращает запуск нескольких экземпляров робота
@@ -124,10 +126,10 @@ async def robot():
         except Exception as e:
             print("Подключение к базе данных  -  ошибка.", e)
             return 1
-
+    
     # чтение из бд данных о telegram-группах
-    bot_groups = await load_groups_from_db(cursor)
-    if bot_groups == 1:
+    telegram_chats, ADMIN_BOT_CHAT_ID = await load_telegram_chats_from_db(cursor)
+    if telegram_chats == 1:
         await cursor.close()
         await cnxn.close()
         ROBOT_START, ROBOT_STOP = False, False
@@ -148,7 +150,7 @@ async def robot():
         print(msg_data_records)
         print()
         if len(msg_data_records) > 0:
-            await robot_send_messages(cnxn, cursor, msg_data_records, bot_groups)
+            await robot_send_messages(cnxn, cursor, msg_data_records, telegram_chats)
         else:
             print('Нет новых сообщений в базе данных.')  ### test
 
@@ -164,7 +166,7 @@ async def robot():
         sys.exit()
 
 
-async def robot_send_messages(cnxn, cursor, msg_data_records, bot_groups):
+async def robot_send_messages(cnxn, cursor, msg_data_records, telegram_chats):
     # отправляет сообщения через telegram
     for record in msg_data_records:
         # структура данных record =  (1, 'This is the test message 1!', 'test-group-1')
@@ -175,16 +177,17 @@ async def robot_send_messages(cnxn, cursor, msg_data_records, bot_groups):
 
         for address in record_addresses:
             address = address.strip()
-            if address not in bot_groups:
-                print(f'Бот не является участником группы {address} или группа не добавлена в базу данных.\nСообщение не отправлено.\n')
+            if address not in telegram_chats:
+                # print(f'Бот не является участником группы {address} или группа не добавлена в базу данных.\nСообщение не отправлено.\n')
+                print(f'У бота не создан чат с {address} или чат не добавлен в базу данных.\nСообщение не отправлено.\n')
                 # добавить оповещение админа, только 1 раз
-                msg = (f"Получен запрос на отправку сообщения в группу {address}, в которой бот не участвует, " +
-                        "или группа не добавлена в базу данных.\n" +
+                msg = (f"Получен запрос на отправку сообщения в чат с {address}, в котором бот не участвует, " +
+                        "или чат не добавлен в базу данных.\n" +
                         f"Запись в таблице {DB_TABLE_MESSAGES} с id={record_id}")
                 url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage?chat_id={ADMIN_BOT_CHAT_ID}&text={msg}"
                 requests.get(url).json()
                 continue
-            chat_id = bot_groups[address]
+            chat_id = telegram_chats[address]
             print(f'Отправка сообщения {address}', 'chat_id =', chat_id)
             url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage?chat_id={chat_id}&text={record_msg}"
             try:
@@ -199,14 +202,15 @@ async def robot_send_messages(cnxn, cursor, msg_data_records, bot_groups):
 
 
 # === DATABASE FUNCTIONS ===
-async def load_groups_from_db(cursor):
-    # выборка из базы данных параметров telegram-групп бота
+async def load_telegram_chats_from_db(cursor):
+    # выборка из базы данных параметров telegram-чатов бота
     try:
-        query = f"select group_title, group_chat_id from {DB_TABLE_GROUPS} where bot_name='{BOT_NAME}' and is_active"
+        query = f"select entity_name, chat_id, entity_type from {DB_TABLE_TELEGRAM_CHATS} where bot_name='{BOT_NAME}' and is_active"
         await cursor.execute(query)
         rows = await cursor.fetchall()
-        groups_dict = {row[0]: row[1] for row in rows}
-        return groups_dict
+        telegram_chats_dict = {row[0]: row[1] for row in rows}
+        ADMIN_BOT_CHAT_ID = [row[1] for row in rows if row[2] == 'administrator'][0]
+        return telegram_chats_dict, ADMIN_BOT_CHAT_ID
     except Exception as e:
         print('Ошибка чтения из базы данных.', e)
         return 1

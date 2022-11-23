@@ -28,6 +28,8 @@ for s in hashed_section_key_list:
     hashed = config[s[0]][s[1]]
     config[s[0]][s[1]] = (refKey.decrypt(hashed).decode('utf-8')) if hashed != '' else config[s[0]][s[1]]
 
+ADMIN_BOT_CHAT_ID = str()
+
 SIGN_IN_FLAG = False
 
 THEME_COLOR = 'White' #'Gainsboro'
@@ -80,13 +82,13 @@ async def btn_test_db_click():
                 await cursor.fetchall()
                 await asyncio.sleep(1)
                 try:
-                    await cursor.execute(f"select count(id) from {config['database']['db_table_groups']}")
+                    await cursor.execute(f"select count(id) from {config['database']['db_table_telegram_chats']}")
                     await cursor.fetchall()
                     lbl_msg_test_db['text'] = f"Обращение к таблицам базы данных  -  OK"
                     await asyncio.sleep(1)
                     lbl_msg_test_db['text'] = 'Тестирование успешно завершено'
                 except:
-                    lbl_msg_test_db['text'] = f"Обращение к таблице {config['database']['db_table_groups'].split('.')[-1]} - ошибка"
+                    lbl_msg_test_db['text'] = f"Обращение к таблице {config['database']['db_table_telegram_chats'].split('.')[-1]} - ошибка"
             except:
                 lbl_msg_test_db['text'] = f"Обращение к таблице {config['database']['db_table_messages'].split('.')[-1]} - ошибка"
             
@@ -95,12 +97,37 @@ async def btn_test_db_click():
         except:
             lbl_msg_test_db['text'] = f"Подключение к базе данных {config['database']['db']}  -  ошибка"
 
+async def load_admin_bot_chat_id_from_db():
+    # выборка из базы данных id чата бота с админом
+    global ADMIN_BOT_CHAT_ID
+    try:
+        cnxn = await aioodbc.connect(dsn=config['database']['connection_string'], loop=loop_admin)
+        cursor = await cnxn.cursor()
+    except:
+        lbl_msg_test_admin_chat['text'] = f"Подключение к базе данных {config['database']['db']}  -  ошибка"
+    try:
+        query = f"""select chat_id from {config['database']['db_table_telegram_chats']} 
+            where entity_type='administrator' and bot_name='{config['common']['bot_name']}' and is_active"""
+        await cursor.execute(query)
+        rows = await cursor.fetchall()
+        ADMIN_BOT_CHAT_ID = [row[0] for row in rows][0]
+    except Exception as e:
+        await cursor.close()
+        await cnxn.close()
+        print('Ошибка чтения id чата бота с администратором из базы данных.', e)
+        return 1
+    await cursor.close()
+    await cnxn.close()
+
 async def btn_test_message_to_admin_click():
     # тестирует отправку сообщений в чат бота с админом
+    if not ADMIN_BOT_CHAT_ID:
+        await load_admin_bot_chat_id_from_db()
+
     lbl_msg_test_admin_chat['text'] = f"Отправка тестового сообщения ....."
     await asyncio.sleep(1)
     msg = 'Тестовое сообщение'
-    url = f"https://api.telegram.org/bot{config['common']['bot_token']}/sendMessage?chat_id={config['admin_credentials']['admin_bot_chat_id']}&text={msg}"
+    url = f"https://api.telegram.org/bot{config['common']['bot_token']}/sendMessage?chat_id={ADMIN_BOT_CHAT_ID}&text={msg}"
     try:
         res = requests.get(url).json()
         if res['ok'] == False:
